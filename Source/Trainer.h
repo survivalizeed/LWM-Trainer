@@ -15,7 +15,8 @@ class Trainer {
 	DWORD procId;
 	uintptr_t modBase;
 	std::map<std::string_view, uintptr_t> entrys;
-	
+	std::map<std::string_view, std::vector<BYTE>> stores;
+
 public:
 	Trainer(std::string_view procName)
 		: procName(procName), procId(GetProcessID()), modBase(GetModuleBaseAddress()) 
@@ -39,17 +40,31 @@ public:
 	}
 
 	template<typename Ret>
-	Ret ReadDynAddress(uintptr_t address) {
+	Ret ReadDynAddress(uintptr_t startaddress) {
 		Ret buf{};
-		ReadProcessMemory(hProcess, (BYTE*)address, &buf, sizeof(buf), nullptr);
+		ReadProcessMemory(hProcess, (BYTE*)startaddress, &buf, sizeof(buf), nullptr);
 		return buf;
 	}
 
-	void WriteDynAddress(uintptr_t address, const std::vector<BYTE>& bytes) {
+	void WriteDynAddress(uintptr_t startaddress, const std::vector<BYTE>& bytes) {
 		for (auto& iter : bytes) {
-			WriteProcessMemory(hProcess, (BYTE*)address, &iter, sizeof(BYTE), nullptr);
-			address += 0x1;
+			WriteProcessMemory(hProcess, (BYTE*)startaddress, &iter, sizeof(BYTE), nullptr);
+			startaddress++;
 		}
+	}
+
+	void Patch(std::string_view name, uintptr_t startaddress, const std::vector<BYTE>& instructions) {
+		std::vector<BYTE> tmp(instructions.size());
+		for (int i = 0; i < instructions.size(); ++i) {
+			ReadProcessMemory(hProcess, (BYTE*)startaddress, &tmp[i], sizeof(BYTE), nullptr);
+			startaddress++;
+		}
+		stores[name] = tmp;
+		WriteDynAddress(startaddress - (instructions.size()), instructions);
+	}
+
+	void Restore(std::string name, uintptr_t startaddress) {
+		WriteDynAddress(startaddress, stores[name]);
 	}
 
 private:
