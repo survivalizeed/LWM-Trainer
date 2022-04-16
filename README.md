@@ -9,7 +9,7 @@ If you are using Visual Studio you have to put the following _CRT_SECURE_NO_WARN
 The program must have administrative rights  
 ### Important
 #### Don't do this mistake!
-##### object.Write("Name",12)  
-#### Write this instead  
-##### object.Write("Name",int(12))  
+<pre> object.Write("Name",12) </pre>  
+#### Write this instead:  
+<pre> object.Write("Name",int(12)) </pre>
 #### This notation makes sure that you don't use a wrong type, which will result in a hard to debug undefined behaivior!
