@@ -1,7 +1,7 @@
 #include "Trainer.h"
 
 
-void Trainer::AddEntry(std::string_view name, uintptr_t dynamicBaseOffset, const std::vector<unsigned int>& offsets)
+void Trainer::AddEntry(std::string_view name, uintptr_t dynamicBaseOffset, const std::vector<unsigned int>& offsets, uintptr_t endoffset)
 {
 	uintptr_t addr = modBase + dynamicBaseOffset;
 	for (unsigned int i = 0; i < offsets.size(); ++i)
@@ -9,9 +9,58 @@ void Trainer::AddEntry(std::string_view name, uintptr_t dynamicBaseOffset, const
 		ReadProcessMemory(hProcess, (BYTE*)addr, &addr, sizeof(addr), nullptr);
 		addr += offsets[i];
 	}
-	entrys[name] = addr;
+	entrys[name] = addr + endoffset;
 }
 
+bool Trainer::IdleWait(std::string_view searchmessage, std::string_view foundmessage)
+{
+	std::cout << searchmessage << "\n";
+	for (;;) {
+		procId = GetProcessID();
+		if (procId != 0) {
+			std::cout << foundmessage << "\n";
+			hProcess = OpenProcess(PROCESS_ALL_ACCESS, NULL, procId);
+			modBase = GetModuleBaseAddress();
+			return true;
+		}
+		Sleep(1);
+	}
+}
+
+
+void Trainer::WriteDynAddress(uintptr_t startaddress, const std::vector<BYTE>& bytes)
+{
+	for (auto& iter : bytes) {
+		WriteProcessMemory(hProcess, (BYTE*)startaddress, &iter, sizeof(BYTE), nullptr);
+		startaddress++;
+	}
+}
+
+void Trainer::Patch(std::string_view name, uintptr_t startaddress, const std::vector<BYTE>& instructions)
+{
+	std::vector<BYTE> tmp(instructions.size());
+	for (int i = 0; i < instructions.size(); ++i) {
+		ReadProcessMemory(hProcess, (BYTE*)startaddress, &tmp[i], sizeof(BYTE), nullptr);
+		startaddress++;
+	}
+	stores[name] = { startaddress - (instructions.size()), tmp };
+	WriteDynAddress(startaddress - (instructions.size()), instructions);
+}
+
+void Trainer::Restore(std::string name)
+{
+	WriteDynAddress(stores[name].first, stores[name].second);
+}
+
+void Trainer::Freeze()
+{
+	DebugActiveProcess(procId);
+}
+
+void Trainer::Unfreeze()
+{
+	DebugActiveProcessStop(procId);
+}
 
 DWORD Trainer::GetProcessID()
 {
