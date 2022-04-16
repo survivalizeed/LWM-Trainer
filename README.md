@@ -6,4 +6,9 @@ If you wan't to attach your program to a x86 process you have to compile in x86.
 If you wan't to attach your program to a x64 process you have to compile in x64.  
 
 If you are using Visual Studio you have to put the following _CRT_SECURE_NO_WARNINGS under C/C++ -> Preprocessor -> Preprocessor definitions  
-The program must have administrative rights
+The program must have administrative rights  
+Don't do this mistake!
+#### object.Write("Name",12)  
+write this instead  
+#### object.Write("Name",int(12))  
+This notation makes sure that you don't use a wrong type, which will result in a hard to debug undefined behaivior!
