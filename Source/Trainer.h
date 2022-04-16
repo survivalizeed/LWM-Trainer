@@ -7,6 +7,7 @@
 #include <vector>
 #include <map>
 #include <concepts>
+#include <utility>
 
 
 class Trainer {
@@ -15,16 +16,19 @@ class Trainer {
 	DWORD procId;
 	uintptr_t modBase;
 	std::map<std::string_view, uintptr_t> entrys;
-	std::map<std::string_view, std::vector<BYTE>> stores;
+	std::map<std::string_view, std::pair<uintptr_t, std::vector<BYTE>>> stores;
 
 public:
+
 	Trainer(std::string_view procName)
 		: procName(procName), procId(GetProcessID()), modBase(GetModuleBaseAddress()) 
 	{
 		hProcess = OpenProcess(PROCESS_ALL_ACCESS, NULL, procId);
 	}
 
-	void AddEntry(std::string_view name, uintptr_t dynamicBaseOffset, const std::vector<unsigned int>& offsets);
+	void AddEntry(std::string_view name, uintptr_t dynamicBaseOffset, const std::vector<unsigned int>& offsets, uintptr_t endoffset);
+
+	bool IdleWait(std::string_view searchmessage,std::string_view foundmessage);
 
 	template<typename Ret>
 	Ret& Read(std::string_view name) {
@@ -34,7 +38,7 @@ public:
 	}
 
 	template<typename Type>
-	requires std::integral<Type>
+	requires std::integral<Type> || std::floating_point<Type>
 	void Write(std::string_view name, Type value) {
 		WriteProcessMemory(hProcess, (BYTE*)entrys[name], &value, sizeof(value), nullptr);
 	}
@@ -46,26 +50,15 @@ public:
 		return buf;
 	}
 
-	void WriteDynAddress(uintptr_t startaddress, const std::vector<BYTE>& bytes) {
-		for (auto& iter : bytes) {
-			WriteProcessMemory(hProcess, (BYTE*)startaddress, &iter, sizeof(BYTE), nullptr);
-			startaddress++;
-		}
-	}
+	void WriteDynAddress(uintptr_t startaddress, const std::vector<BYTE>& bytes);
 
-	void Patch(std::string_view name, uintptr_t startaddress, const std::vector<BYTE>& instructions) {
-		std::vector<BYTE> tmp(instructions.size());
-		for (int i = 0; i < instructions.size(); ++i) {
-			ReadProcessMemory(hProcess, (BYTE*)startaddress, &tmp[i], sizeof(BYTE), nullptr);
-			startaddress++;
-		}
-		stores[name] = tmp;
-		WriteDynAddress(startaddress - (instructions.size()), instructions);
-	}
+	void Patch(std::string_view name, uintptr_t startaddress, const std::vector<BYTE>& instructions);
 
-	void Restore(std::string name, uintptr_t startaddress) {
-		WriteDynAddress(startaddress, stores[name]);
-	}
+	void Restore(std::string name);
+
+	void Freeze();
+
+	void Unfreeze();
 
 private:
 	DWORD GetProcessID();
