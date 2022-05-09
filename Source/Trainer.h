@@ -44,13 +44,13 @@ public:
 	}
 
 	template<typename Ret>
-	Ret ReadDynAddress(uintptr_t startaddress) {
+	Ret ReadAddress(uintptr_t startaddress) {
 		Ret buf{};
 		ReadProcessMemory(hProcess, (BYTE*)startaddress, &buf, sizeof(buf), nullptr);
 		return buf;
 	}
 
-	void WriteDynAddress(uintptr_t startaddress, const std::vector<BYTE>& bytes);
+	void WriteAddress(uintptr_t startaddress, const std::vector<BYTE>& bytes);
 
 	void Patch(std::string_view name, uintptr_t startaddress, const std::vector<BYTE>& instructions);
 
@@ -59,6 +59,10 @@ public:
 	void Freeze();
 
 	void Unfreeze();
+
+	DWORD GetProcId();
+
+	HANDLE GetProcHandle();
 
 private:
 	DWORD GetProcessID();

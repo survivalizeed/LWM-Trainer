@@ -28,7 +28,7 @@ bool Trainer::IdleWait(std::string_view searchmessage, std::string_view foundmes
 }
 
 
-void Trainer::WriteDynAddress(uintptr_t startaddress, const std::vector<BYTE>& bytes)
+void Trainer::WriteAddress(uintptr_t startaddress, const std::vector<BYTE>& bytes)
 {
 	for (auto& iter : bytes) {
 		WriteProcessMemory(hProcess, (BYTE*)startaddress, &iter, sizeof(BYTE), nullptr);
@@ -44,12 +44,13 @@ void Trainer::Patch(std::string_view name, uintptr_t startaddress, const std::ve
 		startaddress++;
 	}
 	stores[name] = { startaddress - (instructions.size()), tmp };
-	WriteDynAddress(startaddress - (instructions.size()), instructions);
+	WriteAddress(startaddress - (instructions.size()), instructions);
 }
 
 void Trainer::Restore(std::string name)
 {
-	WriteDynAddress(stores[name].first, stores[name].second);
+	if (stores[name].first == 0 || stores[name].second.size() == 0) return;
+	WriteAddress(stores[name].first, stores[name].second);
 }
 
 void Trainer::Freeze()
@@ -60,6 +61,16 @@ void Trainer::Freeze()
 void Trainer::Unfreeze()
 {
 	DebugActiveProcessStop(procId);
+}
+
+DWORD Trainer::GetProcId()
+{
+	return procId;
+}
+
+HANDLE Trainer::GetProcHandle()
+{
+	return hProcess;
 }
 
 DWORD Trainer::GetProcessID()
