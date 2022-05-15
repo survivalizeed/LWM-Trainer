@@ -7,6 +7,7 @@ If you wan't to attach your program to a x64 process you have to compile in x64.
 
 If you are using Visual Studio you have to put the following _CRT_SECURE_NO_WARNINGS under C/C++ -> Preprocessor -> Preprocessor definitions  
 The program must have administrative rights  
+The code uses c++20 features  
 ### Important
 #### Don't do this mistake!
 <pre> object.Write("Name",12) </pre>  
