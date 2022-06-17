@@ -7,7 +7,7 @@ void Trainer::StartCheckThread()
 		for (;;) {
 			if (GetProcessID() == 0) procValid = false;
 			else procValid = true;
-			Sleep(500);
+			if (killThread) return;
 		}
 	};
 	std::thread async(checkValidation);
@@ -25,6 +25,11 @@ void Trainer::AddEntry(std::string_view name, uintptr_t dynamicBaseOffset, const
 	entrys[name] = addr + endoffset;
 }
 
+void Trainer::AddStaticEntry(std::string_view name, uintptr_t staticAddress)
+{
+	entrys[name] = staticAddress;
+}
+
 bool Trainer::IdleWait(std::string_view searchmessage, std::string_view foundmessage, std::function<void()> callback)
 {
 	std::cout << searchmessage << "\n";
@@ -35,12 +40,16 @@ bool Trainer::IdleWait(std::string_view searchmessage, std::string_view foundmes
 			std::cout << foundmessage << "\n";
 			hProcess = OpenProcess(PROCESS_ALL_ACCESS, NULL, procId);
 			modBase = GetModuleBaseAddress();
+			DWORD size = MAX_PATH;
+			char* filename = new char[MAX_PATH];
+			QueryFullProcessImageNameA(GetProcHandle(), 0, filename, &size);
+			procPath = filename;
+			delete[] filename;
 			return true;
 		}
 		Sleep(1);
 	}
 }
-
 
 void Trainer::WriteAddress(uintptr_t startaddress, const std::vector<BYTE>& bytes)
 {
@@ -52,11 +61,15 @@ void Trainer::WriteAddress(uintptr_t startaddress, const std::vector<BYTE>& byte
 
 void Trainer::Patch(std::string_view name, uintptr_t startaddress, const std::vector<BYTE>& instructions)
 {
+	int alreadyPatched = false;
 	std::vector<BYTE> tmp(instructions.size());
 	for (int i = 0; i < instructions.size(); ++i) {
 		ReadProcessMemory(hProcess, (BYTE*)startaddress, &tmp[i], sizeof(BYTE), nullptr);
+		if (tmp[i] == instructions[i])
+			alreadyPatched++;
 		startaddress++;
 	}
+	if (alreadyPatched == instructions.size()) return;
 	stores[name] = { startaddress - (instructions.size()), tmp };
 	WriteAddress(startaddress - (instructions.size()), instructions);
 }
@@ -66,6 +79,18 @@ void Trainer::Restore(std::string_view name)
 	if (stores.find(name) == stores.end()) 
 		return;
 	WriteAddress(stores[name].first, stores[name].second);
+}
+
+void Trainer::DiskPatch(uintptr_t rawAddress, std::vector<BYTE> instructions)
+{
+	TerminateProcess(GetProcHandle(), 0);
+	while (StillValid()) Sleep(1);
+	DWORD dwWritten = 0;
+	HANDLE hFile = INVALID_HANDLE_VALUE;
+	hFile = CreateFile(GetProcPath().c_str(), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	SetFilePointer(hFile, rawAddress, 0, FILE_BEGIN);
+	WriteFile(hFile, instructions.data(), instructions.size(), &dwWritten, NULL);
+	CloseHandle(hFile);
 }
 
 void Trainer::Freeze()
@@ -99,6 +124,16 @@ DWORD Trainer::GetProcId()
 HANDLE Trainer::GetProcHandle()
 {
 	return hProcess;
+}
+
+std::string Trainer::GetProcPath()
+{
+	return procPath;
+}
+
+Trainer::~Trainer()
+{
+	killThread = true;
 }
 
 DWORD Trainer::GetProcessID()

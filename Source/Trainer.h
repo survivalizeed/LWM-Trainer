@@ -14,8 +14,10 @@
 
 class Trainer {
 	bool procValid = false;
+	bool killThread = false;
 	HANDLE hProcess;
 	std::string_view procName;
+	std::string procPath;
 	DWORD procId;
 	uintptr_t modBase;
 	std::map<std::string_view, uintptr_t> entrys;
@@ -27,11 +29,18 @@ public:
 		: procName(procName), procId(GetProcessID()), modBase(GetModuleBaseAddress()) 
 	{
 		hProcess = OpenProcess(PROCESS_ALL_ACCESS, NULL, procId);
+		DWORD size = MAX_PATH;
+		char* filename = new char[MAX_PATH];
+		QueryFullProcessImageNameA(GetProcHandle(), 0, filename, &size);
+		procPath = filename;
+		delete[] filename;
 	}
 
 	void StartCheckThread();
 
 	void AddEntry(std::string_view name, uintptr_t dynamicBaseOffset, const std::vector<unsigned int>& offsets, uintptr_t endoffset);
+
+	void AddStaticEntry(std::string_view name, uintptr_t staticAddress);
 
 	bool IdleWait(std::string_view searchmessage,std::string_view foundmessage, std::function<void()> callback);
 
@@ -61,6 +70,9 @@ public:
 
 	void Restore(std::string_view name);
 
+	// Before using this, you must call StartCheckThread()
+	void DiskPatch(uintptr_t rawAddress, std::vector<BYTE> instructions);
+
 	void Freeze();
 
 	void Unfreeze();
@@ -72,6 +84,10 @@ public:
 	DWORD GetProcId();
 
 	HANDLE GetProcHandle();
+
+	std::string GetProcPath();
+
+	~Trainer();
 
 private:
 	DWORD GetProcessID();
