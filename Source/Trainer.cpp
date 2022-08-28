@@ -144,15 +144,13 @@ DWORD Trainer::GetProcessID()
 	HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 	if (hSnap != INVALID_HANDLE_VALUE)
 	{
-		PROCESSENTRY32 procEntry{};
+		PROCESSENTRY32W procEntry{};
 		procEntry.dwSize = sizeof(procEntry);
 		if (Process32First(hSnap, &procEntry))
 		{
 			do
 			{
-				wchar_t procEn[100];
-				mbstowcs(procEn, procEntry.szExeFile, 100);
-				if (!_wcsicmp(procEn, wBuf))
+				if (!_wcsicmp(procEntry.szExeFile, wBuf))
 				{
 					procId = procEntry.th32ProcessID;
 					break;
@@ -173,15 +171,13 @@ uintptr_t Trainer::GetModuleBaseAddress()
 	HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, procId);
 	if (hSnap != INVALID_HANDLE_VALUE)
 	{
-		MODULEENTRY32 modEntry{};
+		MODULEENTRY32W modEntry{};
 		modEntry.dwSize = sizeof(modEntry);
 		if (Module32First(hSnap, &modEntry))
 		{
 			do
 			{
-				wchar_t modEn[100];
-				mbstowcs(modEn, modEntry.szModule, 100);
-				if (!_wcsicmp(modEn, wBuf))
+				if (!_wcsicmp(modEntry.szModule, wBuf))
 				{
 					modBaseAddr = (uintptr_t)modEntry.modBaseAddr;
 					break;
