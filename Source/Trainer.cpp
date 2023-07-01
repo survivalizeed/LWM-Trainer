@@ -14,7 +14,7 @@ void Trainer::StartCheckThread()
 	async.detach();
 }
 
-void Trainer::AddEntry(std::string_view name, uintptr_t dynamicBaseOffset, const std::vector<unsigned int>& offsets, uintptr_t endoffset)
+void Trainer::AddEntry(std::string_view name, uintptr_t dynamicBaseOffset, const std::vector<unsigned int>& offsets)
 {
 	uintptr_t addr = modBase + dynamicBaseOffset;
 	for (unsigned int i = 0; i < offsets.size(); ++i)
@@ -22,7 +22,7 @@ void Trainer::AddEntry(std::string_view name, uintptr_t dynamicBaseOffset, const
 		ReadProcessMemory(hProcess, (BYTE*)addr, &addr, sizeof(addr), nullptr);
 		addr += offsets[i];
 	}
-	entrys[name] = addr + endoffset;
+	entrys[name] = addr;
 }
 
 void Trainer::AddStaticEntry(std::string_view name, uintptr_t staticAddress)
@@ -76,7 +76,7 @@ void Trainer::Patch(std::string_view name, uintptr_t startaddress, const std::ve
 
 void Trainer::Restore(std::string_view name)
 {
-	if (stores.find(name) == stores.end()) 
+	if (stores.find(name) == stores.end())
 		return;
 	WriteAddress(stores[name].first, stores[name].second);
 }
@@ -87,7 +87,7 @@ void Trainer::DiskPatch(uintptr_t rawAddress, std::vector<BYTE> instructions)
 	while (StillValid()) Sleep(1);
 	DWORD dwWritten = 0;
 	HANDLE hFile = INVALID_HANDLE_VALUE;
-	hFile = CreateFile(GetProcPath().c_str(), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	hFile = CreateFileA(GetProcPath().c_str(), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	SetFilePointer(hFile, rawAddress, 0, FILE_BEGIN);
 	WriteFile(hFile, instructions.data(), instructions.size(), &dwWritten, NULL);
 	CloseHandle(hFile);
@@ -138,19 +138,17 @@ Trainer::~Trainer()
 
 DWORD Trainer::GetProcessID()
 {
-	wchar_t wBuf[100];
-	mbstowcs(wBuf, procName.data(), 100);
 	DWORD procId = 0;
 	HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 	if (hSnap != INVALID_HANDLE_VALUE)
 	{
-		PROCESSENTRY32W procEntry{};
+		PROCESSENTRY32 procEntry{};
 		procEntry.dwSize = sizeof(procEntry);
 		if (Process32First(hSnap, &procEntry))
 		{
 			do
 			{
-				if (!_wcsicmp(procEntry.szExeFile, wBuf))
+				if (!_stricmp(procEntry.szExeFile, procName.data()))
 				{
 					procId = procEntry.th32ProcessID;
 					break;
@@ -165,19 +163,17 @@ DWORD Trainer::GetProcessID()
 
 uintptr_t Trainer::GetModuleBaseAddress()
 {
-	wchar_t wBuf[100];
-	mbstowcs(wBuf, procName.data(), 100);
 	uintptr_t modBaseAddr = 0;
 	HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, procId);
 	if (hSnap != INVALID_HANDLE_VALUE)
 	{
-		MODULEENTRY32W modEntry{};
+		MODULEENTRY32 modEntry{};
 		modEntry.dwSize = sizeof(modEntry);
 		if (Module32First(hSnap, &modEntry))
 		{
 			do
 			{
-				if (!_wcsicmp(modEntry.szModule, wBuf))
+				if (!_stricmp(modEntry.szModule, procName.data()))
 				{
 					modBaseAddr = (uintptr_t)modEntry.modBaseAddr;
 					break;
