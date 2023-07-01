@@ -26,7 +26,7 @@ class Trainer {
 public:
 
 	Trainer(std::string_view procName)
-		: procName(procName), procId(GetProcessID()), modBase(GetModuleBaseAddress()) 
+		: procName(procName), procId(GetProcessID()), modBase(GetModuleBaseAddress())
 	{
 		hProcess = OpenProcess(PROCESS_ALL_ACCESS, NULL, procId);
 		DWORD size = MAX_PATH;
@@ -38,11 +38,11 @@ public:
 
 	void StartCheckThread();
 
-	void AddEntry(std::string_view name, uintptr_t dynamicBaseOffset, const std::vector<unsigned int>& offsets, uintptr_t endoffset);
+	void AddEntry(std::string_view name, uintptr_t dynamicBaseOffset, const std::vector<unsigned int>& offsets);
 
 	void AddStaticEntry(std::string_view name, uintptr_t staticAddress);
 
-	bool IdleWait(std::string_view searchmessage,std::string_view foundmessage, std::function<void()> callback);
+	bool IdleWait(std::string_view searchmessage, std::string_view foundmessage, std::function<void()> callback);
 
 	template<typename Ret>
 	Ret Read(std::string_view name) {
@@ -52,7 +52,7 @@ public:
 	}
 
 	template<typename Type>
-	requires std::integral<Type> || std::floating_point<Type>
+		requires std::integral<Type> || std::floating_point<Type>
 	void Write(std::string_view name, Type value) {
 		WriteProcessMemory(hProcess, (BYTE*)entrys[name], &value, sizeof(value), nullptr);
 	}
